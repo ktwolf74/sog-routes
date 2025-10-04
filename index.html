@@ -133,37 +133,14 @@
         notes: [ 'Times are approximate; allow extra for security and crowds.' ]
       },
 
-      'EPCOT (Monorail)': {
-  color: '#009688',
-  segments: [
-    {
-      mode: 'rail',
-      minutes: 15,
-      from: 'TTC (Transportation & Ticket Center)',
-      to: 'EPCOT',
-      line: [
-        [28.40567903714145,-81.57965424645178],
-        [28.40253230840072,-81.5794617624057],
-        [28.401853739654925,-81.5744838886875],
-        [28.378613338780127,-81.56350927820549],
-        [28.3798042930719,-81.55755620700391],
-        [28.37913838479341,-81.55337886853279],
-        [28.37902313101292,-81.54969640639614],
-        [28.375834393424583,-81.54911419894343],
-        [28.37393903409371,-81.54780423217515],
-        [28.372645559974313,-81.54850288111807],
-        [28.372427844957997,-81.54939074748302],
-        [28.37301695514733,-81.55068615906484],
-        [28.37437445747663,-81.55081715574131],
-        [28.376820479141912,-81.54963818565038]
-      ]
-    }
-  ],
-  notes: [
-    'Direct EPCOT Monorail from TTC.',
-    'Approx. 15 minutes; includes elevated scenic views along World Drive.'
-  ]
-},
+      'EPCOT': {
+        color: '#7b1fa2',
+        summary: 'Shades → TTC (bus ~7) → EPCOT monorail (~15) → EPCOT.',
+        segments: [
+          { mode: 'bus', minutes: 7, from: 'Shades of Green', to: 'TTC (Transportation & Ticket Center)', line: [ [28.4005,-81.5855] ] },
+          { mode: 'rail', minutes: 15, from: 'TTC Monorail Station', to: 'EPCOT', line: [ [28.4000,-81.5700], [28.3920,-81.5600], [28.3840,-81.5530] ] }
+        ]
+      },
 
       'Animal Kingdom': {
   color: '#2e7d32',
