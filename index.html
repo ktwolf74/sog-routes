@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="x-ua-compatible" content="ie=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shades of Green → Disney Destinations (Interactive Routes)</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous" />
+
+  <style>
+    :root { --panel-width: 340px; }
+    html, body { height: 100%; margin: 0; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #111827; }
+    #app { display: grid; grid-template-columns: 1fr var(--panel-width); min-height: 70vh; min-height: 70dvh; }
+    #map { width: 100%; height: 100%; min-height: 320px; }
+    #sidebar { border-left: 1px solid #e5e7eb; padding: 12px; overflow: auto; }
+    h1 { font-size: 18px; margin: 0 0 8px; }
+    .btn { display:block; width:100%; margin:6px 0; padding:10px 12px; border:1px solid #d1d5db; border-radius:10px; background:#fff; cursor:pointer; text-align:left; font-weight:600; }
+    .btn.active { border-color:#111827; box-shadow:0 0 0 2px rgba(0,0,0,.06) inset; }
+    .variant { font-weight:500; margin-left:8px; }
+    .badge { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:8px; vertical-align:middle; }
+    #inst { margin-top:12px; line-height:1.5; }
+    .reset { margin-top:10px; background:#f3f4f6; border:1px solid #d1d5db; padding:8px 10px; border-radius:8px; cursor:pointer; font-weight:600; }
+    .legend { margin-top:10px; font-size:12px; }
+    .legend div { margin:4px 0; display:flex; align-items:center; }
+    .sample { display:inline-block; width:48px; height:0; border-top-width:4px; border-top-style:solid; margin-right:8px; }
+    .sample.bus { border-top-color:#000; }
+    .sample.rail { border-top-color:#000; border-top-style:dashed; }
+    .sample.ferry { border-top-color:#000; border-top-style:dashed; opacity:.8; }
+
+    #details { padding:16px; border-top:1px solid #e5e7eb; }
+    #details h2 { margin:8px 0; font-size:18px; }
+    #details p { margin:6px 0; }
+
+    @media (max-width: 900px) { :root { --panel-width: 300px; } }
+    @media (max-width: 720px) {
+      #app { grid-template-columns: 1fr; }
+      #map { order: -1; min-height: 50vh; }
+      #sidebar { order: 0; border-left: none; border-bottom: 1px solid #e5e7eb; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="map"></div>
+    <aside id="sidebar">
+      <h1>Shades → Destinations</h1>
+      <div id="buttons"></div>
+      <button class="reset" id="reset" type="button">Show Nothing (reset)</button>
+      <div class="legend">
+        <div><span class="sample bus"></span> Bus</div>
+        <div><span class="sample rail"></span> Monorail</div>
+        <div><span class="sample ferry"></span> Ferry</div>
+      </div>
+      <div id="inst">Tap a destination to show its route + tips. Tap again to hide.</div>
+    </aside>
+  </div>
+
+  <section id="details">
+    <h2 id="details-title">Route details</h2>
+    <div id="details-body">Select a destination above to see the full written instructions here.</div>
+  </section>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
+
+  <script>
+  (function(){
+    const mm = n => n + ' min';
+
+    // Build map
+    const map = L.map('map', { zoomControl: true, scrollWheelZoom: true }).setView([28.402158, -81.590900], 14);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+
+    // Points (your exact coordinates)
+    const points = {
+      'Shades of Green': { lat: 28.402158, lng: -81.590900 },
+      'Magic Kingdom (Gates)': { lat: 28.41598259167214, lng: -81.58118171160439 },
+      'TTC (Transportation & Ticket Center)': { lat: 28.404856749313588, lng: -81.58013028567055 },
+      'TTC Ferry Dock (Anchor)': { lat: 28.406102448791806, lng: -81.58052725260475 },
+      'TTC Monorail Station': { lat: 28.40567903714145, lng: -81.57965424645178 },
+      'Polynesian Monorail Station': { lat: 28.404782699367058, lng: -81.5841423883879 },
+      'Grand Floridian Monorail Station': { lat: 28.410899515154387, lng: -81.58813337838487 },
+      'Contemporary Monorail Station': { lat: 28.414253948522585, lng: -81.57454513385142 },
+      'EPCOT': { lat: 28.375353495297446, lng: -81.54938769577248 },
+      'Animal Kingdom': { lat: 28.355429511694965, lng: -81.59049975749093 },
+      'Hollywood Studios': { lat: 28.35844049591773, lng: -81.55868858649993 },
+      'Disney Springs': { lat: 28.37023947572706, lng: -81.52216122446265 },
+      'Typhoon Lagoon': { lat: 28.365799232542916, lng: -81.52915096405027 },
+      'Blizzard Beach': { lat: 28.35176738876386, lng: -81.57533396667108 },
+      'Fort Wilderness': { lat: 28.4115867998687, lng: -81.56178354984631 },
+      'Port Orleans French Quarter (POFQ)': { lat: 28.380609725476056, lng: -81.53679965603635 }
+    };
+
+    // Styles
+    const ROUTE_STYLES = {
+      bus:   { dashArray: '',    weight: 6 },
+      ferry: { dashArray: '6,8', weight: 6 },
+      rail:  { dashArray: '2,6', weight: 6 },
+      walk:  { dashArray: '1,0', weight: 4 }
+    };
+
+    // Destinations (variants for MK; simple for others)
+    const destinations = {
+      'Magic Kingdom (Gates)': {
+        color: '#0066ff',
+        variants: {
+          'via TTC → Ferry': {
+            summary: 'Shades → TTC (bus ~7) → Walk to Ferry (~3) → Magic Kingdom (ferry ~15).',
+            segments: [
+              { mode: 'bus',   minutes: 7,  from: 'Shades of Green', to: 'TTC (Transportation & Ticket Center)', line: [ [28.4005,-81.5855] ] },
+              { mode: 'walk',  minutes: 3,  from: 'TTC (Transportation & Ticket Center)', to: 'TTC Ferry Dock (Anchor)', line: [ [28.4056,-81.5800] ] },
+              { mode: 'ferry', minutes: 15, from: 'TTC Ferry Dock (Anchor)', to: 'Magic Kingdom (Gates)', line: [ [28.4110,-81.5810] ] }
+            ]
+          },
+          'via TTC → Monorail': {
+            summary: 'Shades → TTC (bus ~7) → Monorail → Magic Kingdom (~10).',
+            segments: [
+              { mode: 'bus',  minutes: 7,  from: 'Shades of Green', to: 'TTC (Transportation & Ticket Center)', line: [ [28.4005,-81.5855] ] },
+              { mode: 'rail', minutes: 10, from: 'TTC Monorail Station', to: 'Magic Kingdom (Gates)',
+                line: [
+                  [28.404782699367058,-81.5841423883879],      /* Polynesian */
+                  [28.410899515154387,-81.58813337838487],     /* Grand Floridian */
+                  [28.41353055392182,-81.58837034827869],      /* curve */
+                  [28.4162137786957,-81.58432551314452],       /* curve */
+                  [28.41598250853365,-81.58230944115525]       /* MK loop dot near gates */
+                ] }
+            ]
+          }
+        },
+        notes: [ 'Times are approximate; allow extra for security and crowds.' ]
+      },
+
+      'EPCOT': {
+        color: '#7b1fa2',
+        summary: 'Shades → TTC (bus ~7) → EPCOT monorail (~15) → EPCOT.',
+        segments: [
+          { mode: 'bus', minutes: 7, from: 'Shades of Green', to: 'TTC (Transportation & Ticket Center)', line: [ [28.4005,-81.5855] ] },
+          { mode: 'rail', minutes: 15, from: 'TTC Monorail Station', to: 'EPCOT', line: [ [28.4000,-81.5700], [28.3920,-81.5600], [28.3840,-81.5530] ] }
+        ]
+      },
+
+      'Animal Kingdom': {
+        color: '#2e7d32',
+        summary: 'Shades → Animal Kingdom via (AK/HS) Bus (~20) along Magnolia Palm → Floridian Way → World Drive.',
+        segments: [
+          { mode: 'bus', minutes: 20, from: 'Shades of Green', to: 'Animal Kingdom',
+            line: [
+              [28.402795524868527,-81.59136848777293],
+              [28.404716855341096,-81.58680135733935],
+              [28.397517840513437,-81.58275213393048],
+              [28.393561820414703,-81.57256373558077],
+              [28.348659793551253,-81.56510143730226],
+              [28.35081045081947,-81.59687036008935]
+            ] }
+        ]
+      },
+
+      'Hollywood Studios': {
+        color: '#e53935',
+        summary: 'Shades → Animal Kingdom (~20) → Hollywood Studios (~15) via (AK/HS) Bus.',
+        segments: [
+          { mode: 'bus', minutes: 20, from: 'Shades of Green', to: 'Animal Kingdom',
+            line: [
+              [28.402795524868527,-81.59136848777293],
+              [28.404716855341096,-81.58680135733935],
+              [28.397517840513437,-81.58275213393048],
+              [28.393561820414703,-81.57256373558077],
+              [28.348659793551253,-81.56510143730226],
+              [28.35081045081947,-81.59687036008935]
+            ] },
+          { mode: 'bus', minutes: 15, from: 'Animal Kingdom', to: 'Hollywood Studios', line: [ [28.365,-81.583], [28.371,-81.574], [28.366,-81.565] ] }
+        ]
+      },
+
+      'Disney Springs': {
+        color: '#ff8f00',
+        summary: 'Shades → Disney Springs via DS Bus (~20).',
+        segments: [
+          { mode: 'bus', minutes: 20, from: 'Shades of Green', to: 'Disney Springs', line: [ [28.3975,-81.5805], [28.389,-81.566], [28.38,-81.545] ] }
+        ]
+      },
+
+      'Typhoon Lagoon': {
+        color: '#00acc1',
+        summary: 'Shades → Disney Springs (~20) → Typhoon Lagoon (~15).',
+        segments: [
+          { mode: 'bus', minutes: 20, from: 'Shades of Green', to: 'Disney Springs', line: [ [28.3975,-81.5805], [28.389,-81.566], [28.38,-81.545] ] },
+          { mode: 'bus', minutes: 15, from: 'Disney Springs', to: 'Typhoon Lagoon', line: [ [28.368,-81.526] ] }
+        ]
+      },
+
+      'Blizzard Beach': {
+        color: '#0288d1',
+        summary: 'Shades → Animal Kingdom (~20) → Blizzard Beach (~12).',
+        segments: [
+          { mode: 'bus', minutes: 20, from: 'Shades of Green', to: 'Animal Kingdom',
+            line: [
+              [28.402795524868527,-81.59136848777293],
+              [28.404716855341096,-81.58680135733935],
+              [28.397517840513437,-81.58275213393048],
+              [28.393561820414703,-81.57256373558077],
+              [28.348659793551253,-81.56510143730226],
+              [28.35081045081947,-81.59687036008935]
+            ] },
+          { mode: 'bus', minutes: 12, from: 'Animal Kingdom', to: 'Blizzard Beach', line: [ [28.354,-81.584] ] }
+        ]
+      }
+    };
+
+    // Markers
+    const baseMarkers = {
+      'Shades of Green': L.marker([points['Shades of Green'].lat, points['Shades of Green'].lng]).bindPopup('Shades of Green'),
+      'TTC (Transportation & Ticket Center)': L.marker([points['TTC (Transportation & Ticket Center)'].lat, points['TTC (Transportation & Ticket Center)'].lng]).bindPopup('TTC (Transportation & Ticket Center)')
+    };
+    baseMarkers['Shades of Green'].addTo(map);
+
+    const destMarkers = {};
+    Object.keys(points).forEach(name => {
+      if (baseMarkers[name]) return;
+      destMarkers[name] = L.marker([points[name].lat, points[name].lng]).bindPopup(name);
+    });
+
+    // Resort loop dots (only when MK Monorail is active)
+    const resortStationMarkers = [
+      L.circleMarker([points['Polynesian Monorail Station'].lat, points['Polynesian Monorail Station'].lng], { radius: 4, color: '#111', weight: 2, fill: true, fillOpacity: 1 }).bindTooltip('Polynesian',{direction:'top'}),
+      L.circleMarker([points['Grand Floridian Monorail Station'].lat, points['Grand Floridian Monorail Station'].lng], { radius: 4, color: '#111', weight: 2, fill: true, fillOpacity: 1 }).bindTooltip('Grand Floridian',{direction:'top'}),
+      L.circleMarker([points['Contemporary Monorail Station'].lat, points['Contemporary Monorail Station'].lng], { radius: 4, color: '#111', weight: 2, fill: true, fillOpacity: 1 }).bindTooltip('Contemporary',{direction:'top'})
+    ];
+
+    // Helpers
+    const activeLayerGroup = L.layerGroup().addTo(map);
+
+    function buildLine(seg) {
+      const pts = [];
+      const fromPt = seg.from && points[seg.from] ? [points[seg.from].lat, points[seg.from].lng] : null;
+      const toPt   = seg.to   && points[seg.to]   ? [points[seg.to].lat,   points[seg.to].lng]   : null;
+      const mids = Array.isArray(seg.line) ? seg.line.slice(0) : [];
+      if (fromPt) pts.push(fromPt);
+      if (mids.length) pts.push(...mids);
+      if (toPt) pts.push(toPt);
+      if (!pts.length && Array.isArray(seg.line)) return seg.line;
+      return pts;
+    }
+    function drawSegment(seg, color) {
+      const style = ROUTE_STYLES[seg.mode] || { dashArray: '', weight: 6 };
+      const line = buildLine(seg);
+      return L.polyline(line, { color, weight: style.weight, opacity: 0.95, dashArray: style.dashArray });
+    }
+    function clearActive() {
+      activeLayerGroup.clearLayers();
+      document.querySelectorAll('.btn, .variant').forEach(b => b.classList.remove('active'));
+    }
+    function totalMinutes(segments) {
+      return segments.reduce((sum, s) => sum + (s.minutes || 0), 0);
+    }
+    function renderInstructionHTML(title, color, segments, extraNotes, summary) {
+      const total = totalMinutes(segments);
+      const rows = segments.map(s => `
+        <tr>
+          <td>${s.from} → ${s.to}</td>
+          <td><code>${s.mode}</code></td>
+          <td>${mm(s.minutes)}</td>
+        </tr>`).join('');
+      const notes = extraNotes && extraNotes.length
+        ? `<div class="muted" style="margin-top:8px;">${extraNotes.map(n=>'• '+n).join('<br>')}</div>` : '';
+      return `
+        <strong><span class="badge" style="background:${color}"></span>${title}</strong><br>
+        <div style="margin-top:6px; color:#374151;">${summary || ''}</div>
+        <table style="width:100%; border-collapse:collapse; margin-top:8px; font-size:13px;">
+          <thead>
+            <tr style="text-align:left; border-bottom:1px solid #eee;">
+              <th style="padding:4px 0;">Segment</th>
+              <th style="padding:4px 0;">Mode</th>
+              <th style="padding:4px 0;">Est.</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div style="margin-top:8px; font-weight:600;">Approx. total: ${mm(total)}</div>
+        ${notes}
+      `;
+    }
+    function setDetails(title, segments, summary) {
+      const total = totalMinutes(segments);
+      const t = document.getElementById('details-title');
+      const b = document.getElementById('details-body');
+      t.textContent = title;
+      const lines = segments.map(s => `• ${s.from} → ${s.to} (${s.mode}, ${mm(s.minutes)})`).join('<br>');
+      b.innerHTML = `${summary ? `<p>${summary}</p>` : ''}<p>${lines}</p><p><strong>Approx. total:</strong> ${mm(total)}</p>`;
+    }
+    function fitToSegments(segments) {
+      const bounds = L.latLngBounds([]);
+      segments.forEach(s => { buildLine(s).forEach(([lat,lng]) => bounds.extend([lat,lng])); });
+      if (bounds.isValid()) map.fitBounds(bounds.pad(0.15));
+    }
+
+    // UI
+    const order = ['Magic Kingdom (Gates)','EPCOT','Animal Kingdom','Hollywood Studios','Disney Springs','Typhoon Lagoon','Blizzard Beach'];
+    const buttonsWrap = document.getElementById('buttons');
+
+    let activeDest = null, activeVariant = null;
+
+    function activateSimple(name) {
+      clearActive();
+      activeDest = name; activeVariant = null;
+      const d = destinations[name];
+
+      d.segments.forEach(seg => activeLayerGroup.addLayer(drawSegment(seg, d.color)));
+      activeLayerGroup.addLayer(destMarkers[name]);
+
+      document.getElementById('inst').innerHTML =
+        renderInstructionHTML(name, d.color, d.segments, d.notes || [], d.summary);
+      setDetails(name, d.segments, d.summary);
+      fitToSegments(d.segments);
+
+      const btn = document.querySelector(`[data-name="${name}"]`); if (btn) btn.classList.add('active');
+      setTimeout(()=>map.invalidateSize(),0);
+    }
+
+    function activateVariant(name, variantKey) {
+      clearActive();
+      activeDest = name; activeVariant = variantKey;
+      const d = destinations[name];
+      const v = d.variants[variantKey];
+
+      v.segments.forEach(seg => activeLayerGroup.addLayer(drawSegment(seg, d.color)));
+      activeLayerGroup.addLayer(destMarkers[name]);
+
+      if (name === 'Magic Kingdom (Gates)' && /Monorail/.test(variantKey)) {
+        resortStationMarkers.forEach(m => activeLayerGroup.addLayer(m));
+      }
+
+      document.getElementById('inst').innerHTML =
+        renderInstructionHTML(`${name} — ${variantKey}`, d.color, v.segments, d.notes || [], v.summary || d.summary);
+      setDetails(`${name} — ${variantKey}`, v.segments, v.summary || d.summary);
+      fitToSegments(v.segments);
+
+      const btn = document.querySelector(`[data-name="${name}"]`); if (btn) btn.classList.add('active');
+      const vbtn = document.querySelector(`[data-variant="${name}::${variantKey}"]`); if (vbtn) vbtn.classList.add('active');
+      setTimeout(()=>map.invalidateSize(),0);
+    }
+
+    order.forEach(name => {
+      const d = destinations[name];
+      const destBtn = document.createElement('button');
+      destBtn.type = 'button';
+      destBtn.className = 'btn';
+      destBtn.dataset.name = name;
+      destBtn.innerHTML = `<span class="badge" style="background:${d.color}"></span>${name}`;
+      destBtn.addEventListener('click', () => {
+        if (activeDest === name && !d.variants) {
+          clearActive();
+          document.getElementById('inst').textContent = 'Tap a destination to show its route + tips. Tap again to hide.';
+          document.getElementById('details-title').textContent = 'Route details';
+          document.getElementById('details-body').textContent = 'Select a destination above to see the full written instructions here.';
+          map.setView([points['Shades of Green'].lat, points['Shades of Green'].lng], 14);
+          map.invalidateSize();
+          return;
+        }
+        if (!d.variants) { activateSimple(name); }
+      });
+      buttonsWrap.appendChild(destBtn);
+
+      if (d.variants) {
+        Object.keys(d.variants).forEach(variantKey => {
+          const vBtn = document.createElement('button');
+          vBtn.type = 'button';
+          vBtn.className = 'btn variant';
+          vBtn.dataset.variant = `${name}::${variantKey}`;
+          vBtn.innerHTML = `&nbsp;&nbsp;↳ ${variantKey}`;
+          vBtn.addEventListener('click', () => {
+            if (activeDest === name && activeVariant === variantKey) {
+              clearActive();
+              document.getElementById('inst').textContent = 'Tap a destination to show its route + tips. Tap again to hide.';
+              document.getElementById('details-title').textContent = 'Route details';
+              document.getElementById('details-body').textContent = 'Select a destination above to see the full written instructions here.';
+              map.setView([points['Shades of Green'].lat, points['Shades of Green'].lng], 14);
+              map.invalidateSize();
+              return;
+            }
+            activateVariant(name, variantKey);
+          });
+          buttonsWrap.appendChild(vBtn);
+        });
+      }
+    });
+
+    // Reset
+    document.getElementById('reset').addEventListener('click', () => {
+      clearActive();
+      document.getElementById('inst').textContent = 'Tap a destination to show its route + tips. Tap again to hide.';
+      document.getElementById('details-title').textContent = 'Route details';
+      document.getElementById('details-body').textContent = 'Select a destination above to see the full written instructions here.';
+      map.setView([points['Shades of Green'].lat, points['Shades of Green'].lng], 14);
+      map.invalidateSize();
+    });
+
+    // iOS Safari quirks: ensure map sizes correctly
+    function refresh(){ map.invalidateSize(); }
+    window.addEventListener('resize', refresh);
+    window.addEventListener('orientationchange', refresh);
+    setTimeout(refresh, 100);
+
+    // Auto-select on load: MK → Monorail
+    activateVariant('Magic Kingdom (Gates)', 'via TTC → Monorail');
+
+    // Open Shades popup initially
+    baseMarkers['Shades of Green'].openPopup();
+  })();
+  </script>
+</body>
+</html>
