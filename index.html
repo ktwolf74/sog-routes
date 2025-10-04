@@ -142,18 +142,44 @@
         ]
       },
 
-     'Animal Kingdom': {
+    'Animal Kingdom': {
   color: '#2e7d32',
   summary: 'Shades → Animal Kingdom via (AK/HS) Bus (~20) along Magnolia Palm → Floridian Way → World Drive.',
   segments: [
-    { mode: 'bus', minutes: 20, from: 'Shades of Green', to: 'Animal Kingdom',
+    {
+      mode: 'bus',
+      minutes: 20,
+      from: 'Shades of Green',
+      to: 'Animal Kingdom',
       line: [
+        // Shades of Green → Magnolia Palm Dr
         [28.402795524868527,-81.59136848777293], // Shades area
-        [28.404716855341096,-81.58680135733935], // Magnolia Palm Dr
-        [28.397517840513437,-81.58275213393048], // Floridian Way
-        [28.393561820414703,-81.57256373558077], // World Dr southbound
+        [28.403650000000000,-81.58950000000000], // midpoint (Magnolia Palm)
+        [28.404250000000000,-81.58820000000000], // midpoint (Magnolia Palm)
+        [28.404716855341096,-81.58680135733935], // Magnolia Palm → Floridian Way
+
+        // Floridian Way southbound
+        [28.402900000000000,-81.58600000000000], // gentle bend
+        [28.400800000000000,-81.58420000000000], // midpoint
+        [28.399000000000000,-81.58330000000000], // midpoint
+        [28.397517840513437,-81.58275213393048], // Floridian Way segment end
+
+        // Merge toward World Drive southbound
+        [28.396300000000000,-81.57950000000000], // feeder toward World Dr
+        [28.395100000000000,-81.57620000000000], // World Dr mid
+        [28.394300000000000,-81.57410000000000], // World Dr mid
+        [28.393561820414703,-81.57256373558077], // World Dr southbound reference
+
+        // Long south/south-west run toward AK area
+        [28.375500000000000,-81.57750000000000], // smoothing waypoint
+        [28.366800000000000,-81.58500000000000], // smoothing waypoint
+        [28.357800000000000,-81.59080000000000], // smoothing waypoint
+
+        // Your corrected approach points near Animal Kingdom
         [28.34963792579548,-81.59322513193418],  // corrected midpoint
+        [28.351800000000000,-81.58960000000000], // gentle bend into AK area
         [28.353014432992776,-81.5884917171971]   // corrected midpoint near AK
+        // final end snaps to 'Animal Kingdom' because this segment's "to" is that named point
       ]
     }
   ],
