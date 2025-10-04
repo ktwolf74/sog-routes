@@ -72,7 +72,62 @@
 
     // Map
     const map = L.map('map', { zoomControl: true, scrollWheelZoom: true }).setView([28.402158, -81.590900], 14);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', // ---- Inline Route Recorder (temporary helper) ----
+(function addRouteRecorder(){
+  const ui = document.createElement('div');
+  ui.style.cssText = 'position:fixed;z-index:1000;right:12px;bottom:12px;background:#fff;border:1px solid #d1d5db;border-radius:10px;padding:8px;box-shadow:0 6px 20px rgba(0,0,0,.08);font:14px system-ui;display:flex;gap:6px;align-items:center;';
+  ui.innerHTML = `
+    <button id="recStart" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:8px;background:#f9fafb;cursor:pointer;">Record Route</button>
+    <button id="recUndo"  style="padding:6px 10px;border:1px solid #d1d5db;border-radius:8px;background:#f9fafb;cursor:pointer;" disabled>Undo</button>
+    <button id="recDone"  style="padding:6px 10px;border:1px solid #111827;border-radius:8px;background:#111827;color:#fff;cursor:pointer;" disabled>Done</button>
+  `;
+  document.body.appendChild(ui);
+
+  let recOn = false;
+  let pts = [];
+  let preview = L.polyline([], {color:'#2e7d32', weight:5, opacity:0.95}).addTo(map);
+
+  function refresh() {
+    preview.setLatLngs(pts);
+    document.getElementById('recUndo').disabled = pts.length===0;
+    document.getElementById('recDone').disabled = pts.length===0;
+  }
+
+  document.getElementById('recStart').addEventListener('click', () => {
+    recOn = !recOn;
+    pts = [];
+    preview.setLatLngs([]);
+    document.getElementById('recStart').textContent = recOn ? 'Recording… (click map)' : 'Record Route';
+    document.getElementById('recStart').style.background = recOn ? '#d1fae5' : '#f9fafb';
+    refresh();
+  });
+
+  document.getElementById('recUndo').addEventListener('click', () => {
+    pts.pop(); refresh();
+  });
+
+  document.getElementById('recDone').addEventListener('click', async () => {
+    recOn = false;
+    document.getElementById('recStart').textContent = 'Record Route';
+    document.getElementById('recStart').style.background = '#f9fafb';
+    const arr = pts.map(p => `[${p.lat.toFixed(12)},${p.lng.toFixed(12)}]`);
+    const snippet = `line: [\n  ${arr.join(',\n  ')}\n]`;
+    console.log('%cCopy this into your Animal Kingdom segment:', 'font-weight:bold;');
+    console.log(snippet);
+    try {
+      await navigator.clipboard.writeText(snippet);
+      alert('Route copied to clipboard. Paste into the Animal Kingdom "line" array.');
+    } catch(e) {
+      alert('Route ready in Console. Copy from DevTools → Console.');
+    }
+  });
+
+  map.on('click', (e) => {
+    if (!recOn) return;
+    pts.push(e.latlng);
+    refresh();
+  });
+})(); { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
 
     // Points
     const points = {
