@@ -110,24 +110,25 @@
     'via TTC → Ferry': {
       summary: 'Shades → TTC (bus ~7) → Walk to Ferry (~3) → Magic Kingdom (ferry ~15).',
       segments: [
+        // Shades → TTC (BUS) with your two midpoints
         {
           mode: 'bus',
           minutes: 7,
           from: 'Shades of Green',
           to: 'TTC (Transportation & Ticket Center)',
           line: [
-            [28.402795524868527,-81.59136848777293], // Shades start
-            [28.404716855341096,-81.58680135733935]  // Magnolia Palm Drive waypoint
+            [28.402795524868527,-81.59136848777293],
+            [28.404716855341096,-81.58680135733935]
           ]
         },
-        {
+        { // TTC → Ferry Dock (walk)
           mode: 'walk',
           minutes: 3,
           from: 'TTC (Transportation & Ticket Center)',
           to: 'TTC Ferry Dock (Anchor)',
           line: [ [28.4056,-81.5800] ]
         },
-        {
+        { // Ferry → MK
           mode: 'ferry',
           minutes: 15,
           from: 'TTC Ferry Dock (Anchor)',
@@ -140,26 +141,28 @@
     'via TTC → Monorail': {
       summary: 'Shades → TTC (bus ~7) → Monorail → Magic Kingdom (~10).',
       segments: [
+        // Shades → TTC (BUS) with your two midpoints
         {
           mode: 'bus',
           minutes: 7,
           from: 'Shades of Green',
           to: 'TTC (Transportation & Ticket Center)',
           line: [
-            [28.402795524868527,-81.59136848777293], // Shades start
-            [28.404716855341096,-81.58680135733935]  // Magnolia Palm Drive waypoint
+            [28.402795524868527,-81.59136848777293],
+            [28.404716855341096,-81.58680135733935]
           ]
         },
-        {
+        { // Monorail TTC → MK (MIDPOINTS ONLY; endpoints added by buildLine)
           mode: 'rail',
           minutes: 10,
           from: 'TTC Monorail Station',
           to: 'Magic Kingdom (Gates)',
           line: [
             [28.404782699367058,-81.5841423883879],   // Polynesian
+            [28.4062883600133,-81.5874857019497],     // NEW midpoint between Poly & GF
             [28.410899515154387,-81.58813337838487],  // Grand Floridian
             [28.41353055392182,-81.58837034827869],   // curve
-            [28.4162137786957,-81.58432551314452],    // curve
+            [28.4162137786957,-81.58432551314452],    // curve toward MK
             [28.41598250853365,-81.58230944115525]    // MK loop dot near gates
           ]
         }
