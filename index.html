@@ -348,7 +348,12 @@
     function drawSegment(seg, color) {
       const style = ROUTE_STYLES[seg.mode] || { dashArray: '', weight: 6 };
       const line = buildLine(seg);
-      return L.polyline(line, { color, weight: style.weight, opacity: 0.95, dashArray: style.dashArray });
+      return L.polyline(line, {
+  color: seg.color || color,
+  weight: style.weight,
+  opacity: 0.95,
+  dashArray: style.dashArray
+});
     }
     function clearActive() {
       activeLayerGroup.clearLayers();
